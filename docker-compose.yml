@@ -1,0 +1,154 @@
+name: spring-lane
+
+x-app-env: &app-env
+  NODE_ENV: production
+  BASE_DOMAIN: ${BASE_DOMAIN}
+  WEB_URL: ${WEB_URL:-https://deploy.${BASE_DOMAIN}}
+  API_URL: ${API_URL:-https://deploy.${BASE_DOMAIN}/api}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-springlane}:${POSTGRES_PASSWORD:-springlane}@postgres:5432/${POSTGRES_DB:-springlane}
+  REDIS_URL: redis://redis:6379
+  BUILD_CONCURRENCY: ${BUILD_CONCURRENCY:-2}
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+  LOG_DIR: /app/data/logs
+  TRAEFIK_NETWORK: ${TRAEFIK_NETWORK:-spring-lane}
+  DEFAULT_APP_MEMORY_MB: ${DEFAULT_APP_MEMORY_MB:-512}
+  DEFAULT_APP_CPUS: ${DEFAULT_APP_CPUS:-1}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-springlane}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-springlane}
+      POSTGRES_DB: ${POSTGRES_DB:-springlane}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - spring-lane
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-springlane} -d ${POSTGRES_DB:-springlane}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - spring-lane
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  traefik:
+    image: traefik:v3.6
+    restart: unless-stopped
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - spring-lane
+
+  api:
+    profiles: ["app"]
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      API_PORT: 3000
+    volumes:
+      - app_logs:/app/data/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - spring-lane
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    profiles: ["app"]
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - app_logs:/app/data/logs
+      - build_workspace:/tmp/spring-lane-builds
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - spring-lane
+
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - spring-lane
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.spring-lane-web.rule=Host(`deploy.${BASE_DOMAIN}`)
+      - traefik.http.routers.spring-lane-web.entrypoints=websecure
+      - traefik.http.routers.spring-lane-web.tls.certresolver=letsencrypt
+      - traefik.http.services.spring-lane-web.loadbalancer.server.port=80
+
+networks:
+  spring-lane:
+    name: ${TRAEFIK_NETWORK:-spring-lane}
+
+volumes:
+  postgres_data:
+  redis_data:
+  traefik_letsencrypt:
+  app_logs:
+  build_workspace:

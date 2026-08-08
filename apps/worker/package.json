@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@spring-lane/db": "workspace:*",
     "@spring-lane/shared": "workspace:*",
     "dotenv": "^17.4.2"
   },

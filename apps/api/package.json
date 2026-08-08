@@ -10,10 +10,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@octokit/rest": "^22.0.1",
+    "@spring-lane/db": "workspace:*",
     "@spring-lane/shared": "workspace:*",
+    "better-auth": "^1.6.26",
+    "bullmq": "^6.0.9",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

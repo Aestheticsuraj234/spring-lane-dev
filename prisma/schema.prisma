@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../packages/db/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DeploymentStatus {
+  QUEUED
+  BUILDING
+  DEPLOYING
+  LIVE
+  FAILED
+  STOPPED
+}
+
+// --- Better Auth core models ---
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  login         String?
+  role          String?   @default("MEMBER")
+  sessions      Session[]
+  accounts      Account[]
+  apps          App[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// --- Spring Lane domain models ---
+
+model App {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  repoFullName String
+  branch       String
+  ownerId      String
+  autoDeploy   Boolean  @default(false)
+  port         Int      @default(8080)
+  memoryMb     Int      @default(512)
+  cpus         Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner       User         @relation(fields: [ownerId], references: [id])
+  deployments Deployment[]
+  envVars     EnvVar[]
+
+  @@index([ownerId])
+}
+
+model Deployment {
+  id            String           @id @default(cuid())
+  appId         String
+  status        DeploymentStatus @default(QUEUED)
+  commitSha     String?
+  commitMessage String?
+  imageTag      String?
+  containerId   String?
+  url           String?
+  errorMessage  String?          @db.Text
+  logPath       String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime         @default(now())
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([appId, createdAt(sort: Desc)])
+}
+
+model EnvVar {
+  id             String   @id @default(cuid())
+  appId          String
+  key            String
+  valueEncrypted String   @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, key])
+}

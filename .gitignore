@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+packages/db/src/generated/
 *.tsbuildinfo
 
 # env
@@ -20,3 +21,5 @@ pnpm-debug.log*
 .idea/
 .vscode/
 .DS_Store
+
+.pnpm-store

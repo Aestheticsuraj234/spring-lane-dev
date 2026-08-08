@@ -1,0 +1,22 @@
+# Local development overrides.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Runs infra only (Postgres, Redis, Traefik). Start api/worker/web on the host with `pnpm dev`.
+
+services:
+  traefik:
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/traefik.dev.yml:/etc/traefik/traefik.yml:ro
+
+  postgres:
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT:-6379}:6379"

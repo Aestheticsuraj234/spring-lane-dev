@@ -14,9 +14,20 @@
     "dev:web": "pnpm --filter @spring-lane/web dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "compose:infra": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d",
+    "compose:infra:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down",
+    "compose:prod": "docker compose --profile app up -d --build",
+    "compose:prod:down": "docker compose --profile app down",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "devDependencies": {
+    "dotenv": "^17.4.2",
+    "prisma": "^7.9.1",
     "typescript": "^7.0.2"
   }
 }

@@ -23,9 +23,11 @@ export const config = {
   github: {
     clientId: optional("GITHUB_CLIENT_ID", ""),
     clientSecret: optional("GITHUB_CLIENT_SECRET", ""),
-    org: optional("GITHUB_ORG", ""),
   },
   encryptionKey: optional("ENCRYPTION_KEY", ""),
-  sessionSecret: optional("SESSION_SECRET", "dev-only-secret"),
+  authSecret: optional("BETTER_AUTH_SECRET", optional("SESSION_SECRET", "dev-only-secret")),
   logDir: optional("LOG_DIR", "./data/logs"),
+  defaultAppMemoryMb: Number(optional("DEFAULT_APP_MEMORY_MB", "512")),
+  defaultAppCpus: Number(optional("DEFAULT_APP_CPUS", "1")),
+  buildConcurrency: Number(optional("BUILD_CONCURRENCY", "2")),
 } as const;

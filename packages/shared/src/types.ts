@@ -13,10 +13,11 @@ export type BuildTool = "maven" | "gradle";
 
 export interface UserDto {
   id: string;
-  githubId: number;
-  login: string;
+  login: string | null;
   name: string | null;
+  email: string;
   avatarUrl: string | null;
+  role: string | null;
 }
 
 export interface AppDto {
