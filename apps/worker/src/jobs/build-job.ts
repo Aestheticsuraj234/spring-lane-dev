@@ -72,12 +72,16 @@ export async function processBuildJob(job: Job<BuildJobData>): Promise<void> {
     await logger.log(`Detected ${tool} build`);
 
     const tag = imageTag(app.name, deploymentId);
-    await logger.log(`Building OCI image ${tag}...`);
+    await logger.log(
+      `Building OCI image ${tag} with Cloud Native Buildpacks (${config.buildpackBuilder})...`,
+    );
 
     await runBootBuildImage({
       repoDir: workspaceDir,
-      tool,
       imageName: tag,
+      packImage: config.packImage,
+      builder: config.buildpackBuilder,
+      dockerSocket: config.dockerSocket || undefined,
       onOutput: writeOutput,
     });
 

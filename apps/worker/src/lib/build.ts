@@ -1,7 +1,8 @@
-import { access, chmod } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import path from "node:path";
 import type { BuildTool } from "@spring-lane/shared";
 import { runCommand, runCommandCapture } from "./process.js";
+import { runBuildpackBuild } from "./pack-build.js";
 
 export interface CloneResult {
   commitSha: string;
@@ -81,52 +82,20 @@ export async function detectBuildTool(repoDir: string): Promise<BuildTool> {
   );
 }
 
-export function buildCommand(
-  tool: BuildTool,
-  repoDir: string,
-  imageName: string,
-): { command: string; args: string[] } {
-  const isWin = process.platform === "win32";
-
-  if (tool === "gradle") {
-    const wrapper = path.join(repoDir, isWin ? "gradlew.bat" : "gradlew");
-    return {
-      command: wrapper,
-      args: ["bootBuildImage", `--imageName=${imageName}`],
-    };
-  }
-
-  const wrapper = path.join(repoDir, isWin ? "mvnw.cmd" : "mvnw");
-  return {
-    command: wrapper,
-    args: [
-      "spring-boot:build-image",
-      `-Dspring-boot.build-image.imageName=${imageName}`,
-    ],
-  };
-}
-
-async function ensureExecutable(command: string): Promise<void> {
-  if (process.platform === "win32") return;
-  await chmod(command, 0o755).catch(() => undefined);
-}
-
 export async function runBootBuildImage(options: {
   repoDir: string;
-  tool: BuildTool;
   imageName: string;
+  packImage: string;
+  builder: string;
+  dockerSocket?: string;
   onOutput?: (chunk: string) => void | Promise<void>;
 }): Promise<void> {
-  const { command, args } = buildCommand(
-    options.tool,
-    options.repoDir,
-    options.imageName,
-  );
-
-  await ensureExecutable(command);
-
-  await runCommand(command, args, {
-    cwd: options.repoDir,
+  await runBuildpackBuild({
+    repoDir: path.resolve(options.repoDir),
+    imageName: options.imageName,
+    packImage: options.packImage,
+    builder: options.builder,
+    dockerSocket: options.dockerSocket,
     onOutput: options.onOutput,
   });
 }

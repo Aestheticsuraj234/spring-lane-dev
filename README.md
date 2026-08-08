@@ -6,7 +6,7 @@ Internal one-click deploy platform for Spring Boot apps: connect a GitHub repo, 
 
 1. Log in with GitHub — any GitHub account can sign in.
 2. Pick a repo + branch and register it as an app.
-3. Click deploy. A worker clones the repo, builds an OCI image with Cloud Native Buildpacks (`./mvnw spring-boot:build-image` or `./gradlew bootBuildImage`), and runs it as a Docker container.
+3. Click deploy. A worker clones the repo, builds an OCI image with Cloud Native Buildpacks (Paketo via `pack`), and runs it as a Docker container.
 4. Traefik routes `https://<app-name>.<BASE_DOMAIN>` to the container and manages TLS via Let's Encrypt.
 5. Build logs stream live to the dashboard; container logs, redeploy, stop/restart/delete, and encrypted env vars are managed from the app page.
 
@@ -30,7 +30,7 @@ docs/
 
 - Node.js 20+ and pnpm 9+
 - Docker (Docker Desktop locally; Docker Engine on the VPS)
-- JDK 17+ on the machine running the worker (the target repo's Maven/Gradle wrapper runs the buildpack build)
+- Docker Desktop (or Docker Engine) on the machine running the worker — buildpacks compile inside containers; no host JDK required
 - A GitHub OAuth App (client ID/secret)
 
 ## Local development

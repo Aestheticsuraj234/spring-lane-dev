@@ -22,5 +22,10 @@ export const config = {
   baseDomain: optional("BASE_DOMAIN", "localhost"),
   traefikNetwork: optional("TRAEFIK_NETWORK", "spring-lane"),
   dockerSocket: optional("DOCKER_SOCKET", ""),
+  packImage: optional("PACK_IMAGE", "buildpacksio/pack:0.36.4"),
+  buildpackBuilder: optional(
+    "BUILDPACK_BUILDER",
+    "paketobuildpacks/builder-jammy-base",
+  ),
   encryptionKey: optional("ENCRYPTION_KEY", ""),
 } as const;

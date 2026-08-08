@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import path from "node:path";
 
 export class CommandError extends Error {
   constructor(
@@ -8,6 +9,43 @@ export class CommandError extends Error {
     super(message);
     this.name = "CommandError";
   }
+}
+
+function spawnProcess(
+  command: string,
+  args: string[],
+  options: {
+    cwd: string;
+    env?: Record<string, string>;
+  },
+): ChildProcessWithoutNullStreams {
+  const cwd = path.resolve(options.cwd);
+  const env = { ...process.env, ...options.env };
+  const isWin = process.platform === "win32";
+  const isBatch = isWin && /\.(cmd|bat)$/i.test(command);
+
+  if (isBatch) {
+    return spawn("cmd.exe", ["/d", "/s", "/c", command, ...args], {
+      cwd,
+      env,
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+  }
+
+  return spawn(command, args, {
+    cwd,
+    env,
+    shell: false,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+}
+
+function formatCommandError(command: string, cwd: string, code: number | null): string {
+  const relativeCwd = path.relative(process.cwd(), path.resolve(cwd)) || ".";
+  return `${path.join(relativeCwd, command)} exited with code ${code ?? "unknown"}`;
 }
 
 export async function runCommand(
@@ -20,12 +58,7 @@ export async function runCommand(
   },
 ): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: { ...process.env, ...options.env },
-      shell: process.platform === "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child = spawnProcess(command, args, options);
 
     const handleChunk = (chunk: Buffer) => {
       const text = chunk.toString("utf8");
@@ -41,7 +74,9 @@ export async function runCommand(
         resolve();
         return;
       }
-      reject(new CommandError(`${command} exited with code ${code ?? "unknown"}`, code));
+      reject(
+        new CommandError(formatCommandError(command, options.cwd, code), code),
+      );
     });
   });
 }
@@ -52,12 +87,7 @@ export async function runCommandCapture(
   options: { cwd: string },
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: process.env,
-      shell: process.platform === "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child = spawnProcess(command, args, options);
 
     let stdout = "";
     child.stdout?.on("data", (chunk: Buffer) => {
@@ -73,7 +103,9 @@ export async function runCommandCapture(
         resolve(stdout.trim());
         return;
       }
-      reject(new CommandError(`${command} exited with code ${code ?? "unknown"}`, code));
+      reject(
+        new CommandError(formatCommandError(command, options.cwd, code), code),
+      );
     });
   });
 }
