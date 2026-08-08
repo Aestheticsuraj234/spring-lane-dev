@@ -8,6 +8,7 @@ import { auth } from "./auth.js";
 import { config } from "./config.js";
 import { appsRouter } from "./routes/apps.js";
 import { reposRouter } from "./routes/repos.js";
+import { attachLogRelay } from "./socket/log-relay.js";
 
 const app = express();
 
@@ -49,6 +50,8 @@ app.use("/repos", reposRouter);
 app.use("/apps", appsRouter);
 
 const server = http.createServer(app);
+
+attachLogRelay(server);
 
 server.listen(config.port, () => {
   console.log(`[api] listening on :${config.port}`);

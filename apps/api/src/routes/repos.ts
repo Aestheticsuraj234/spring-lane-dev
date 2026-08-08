@@ -96,5 +96,3 @@ function handleGithubRouteError(res: import("express").Response, error: unknown)
   console.error("[repos]", error);
   res.status(500).json({ error: "Failed to fetch GitHub data" });
 }
-
-export { parseRepoFullName };

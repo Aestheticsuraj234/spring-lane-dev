@@ -4,15 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
     "build": "tsc --noEmit",
-    "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "start": "tsx --env-file=../../.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "@spring-lane/db": "workspace:*",
+    "@spring-lane/runtime": "workspace:*",
     "@spring-lane/shared": "workspace:*",
-    "dotenv": "^17.4.2"
+    "bullmq": "^6.0.9",
+    "dotenv": "^17.4.2",
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

@@ -5,7 +5,7 @@ import { config } from "./config.js";
 
 export const auth = betterAuth({
   appName: "Spring Lane",
-  baseURL: config.apiUrl,
+  baseURL: config.betterAuthUrl,
   secret: config.authSecret,
   trustedOrigins: [config.webUrl],
   database: prismaAdapter(prisma, {
@@ -15,7 +15,7 @@ export const auth = betterAuth({
     github: {
       clientId: config.github.clientId,
       clientSecret: config.github.clientSecret,
-      scope: ["read:user", "user:email", "repo"],
+      scope: ["repo"],
       mapProfileToUser: (profile) => ({
         login: profile.login,
       }),

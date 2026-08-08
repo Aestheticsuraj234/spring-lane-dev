@@ -2,9 +2,12 @@ import { Router } from "express";
 import { prisma } from "@spring-lane/db";
 import type { CreateAppRequest, UpdateEnvRequest } from "@spring-lane/shared";
 import { config } from "../config.js";
+import { LogStorage } from "@spring-lane/shared/log-storage";
 import { encryptSecret } from "../lib/crypto.js";
 import { parseRepoFullName } from "../lib/github.js";
 import { enqueueBuildJob } from "../lib/queue.js";
+import { getContainerRuntime, getLiveDeployment } from "../lib/runtime.js";
+import { getOwnedDeployment } from "../lib/deployments.js";
 import {
   APP_NAME_PATTERN,
   slugifyAppName,
@@ -132,6 +135,15 @@ appsRouter.delete("/:id", async (req, res) => {
     return;
   }
 
+  const live = await getLiveDeployment(app.id);
+  if (live?.containerId) {
+    try {
+      await getContainerRuntime().stopAndRemove(live.containerId);
+    } catch (error) {
+      console.error("[apps:delete] failed to remove container:", error);
+    }
+  }
+
   await prisma.app.delete({ where: { id: app.id } });
   res.status(204).send();
 });
@@ -207,6 +219,81 @@ appsRouter.patch("/:id/env", async (req, res) => {
   }
 });
 
+appsRouter.post("/:id/stop", async (req, res) => {
+  const app = await getOwnedApp(authed(req), req.params.id);
+  if (!app) {
+    res.status(404).json({ error: "App not found" });
+    return;
+  }
+
+  const live = await getLiveDeployment(app.id);
+  if (!live?.containerId) {
+    res.status(409).json({ error: "No running deployment to stop" });
+    return;
+  }
+
+  try {
+    await getContainerRuntime().stop(live.containerId);
+    const deployment = await prisma.deployment.update({
+      where: { id: live.id },
+      data: {
+        status: "STOPPED",
+        finishedAt: new Date(),
+      },
+    });
+    res.json({ deployment: toDeploymentDto(deployment) });
+  } catch (error) {
+    console.error("[apps:stop]", error);
+    res.status(500).json({ error: "Failed to stop container" });
+  }
+});
+
+appsRouter.post("/:id/restart", async (req, res) => {
+  const app = await getOwnedApp(authed(req), req.params.id);
+  if (!app) {
+    res.status(404).json({ error: "App not found" });
+    return;
+  }
+
+  const live = await getLiveDeployment(app.id);
+  if (!live?.containerId) {
+    res.status(409).json({ error: "No running deployment to restart" });
+    return;
+  }
+
+  try {
+    await getContainerRuntime().restart(live.containerId);
+    res.json({ deployment: toDeploymentDto(live) });
+  } catch (error) {
+    console.error("[apps:restart]", error);
+    res.status(500).json({ error: "Failed to restart container" });
+  }
+});
+
+appsRouter.get("/:id/logs", async (req, res) => {
+  const app = await getOwnedApp(authed(req), req.params.id);
+  if (!app) {
+    res.status(404).json({ error: "App not found" });
+    return;
+  }
+
+  const live = await getLiveDeployment(app.id);
+  if (!live?.containerId) {
+    res.status(409).json({ error: "No running container for this app" });
+    return;
+  }
+
+  const tail = parseLogTail(req.query.tail);
+
+  try {
+    const logs = await getContainerRuntime().getLogs(live.containerId, { tail });
+    res.json({ logs });
+  } catch (error) {
+    console.error("[apps:logs]", error);
+    res.status(500).json({ error: "Failed to fetch container logs" });
+  }
+});
+
 appsRouter.get("/:id/deployments", async (req, res) => {
   const app = await getOwnedApp(authed(req), req.params.id);
   if (!app) {
@@ -221,6 +308,36 @@ appsRouter.get("/:id/deployments", async (req, res) => {
   });
 
   res.json({ deployments: deployments.map(toDeploymentDto) });
+});
+
+appsRouter.get("/:id/deployments/:deploymentId/logs", async (req, res) => {
+  const { session } = authed(req);
+  const appId = req.params.id;
+  const deploymentId = req.params.deploymentId;
+
+  if (!appId || !deploymentId) {
+    res.status(400).json({ error: "App id and deployment id are required" });
+    return;
+  }
+
+  const deployment = await getOwnedDeployment(
+    session.user.id,
+    appId,
+    deploymentId,
+  );
+
+  if (!deployment) {
+    res.status(404).json({ error: "Deployment not found" });
+    return;
+  }
+
+  const logs = await new LogStorage(config.logDir).read(deploymentId);
+  if (logs === null) {
+    res.status(404).json({ error: "Build logs not found" });
+    return;
+  }
+
+  res.json({ logs });
 });
 
 appsRouter.post("/:id/deploy", async (req, res) => {
@@ -280,4 +397,10 @@ async function getOwnedApp(req: AuthedRequest, id: string | undefined) {
 
 function authed(req: import("express").Request): AuthedRequest {
   return req as unknown as AuthedRequest;
+}
+
+function parseLogTail(value: unknown): number {
+  const parsed = typeof value === "string" ? Number(value) : 200;
+  if (!Number.isFinite(parsed) || parsed < 1) return 200;
+  return Math.min(Math.floor(parsed), 2000);
 }

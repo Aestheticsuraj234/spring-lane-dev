@@ -20,7 +20,10 @@ apps/
 prisma/     Database schema and migrations
 packages/
   db/       Prisma 7 client (@prisma/adapter-pg) shared by api and worker
-  shared/   Types and socket/queue contracts shared across apps
+  shared/   Types, LogStorage, socket/queue contracts
+  runtime/  ContainerRuntime (dockerode + Traefik labels)
+docs/
+  SMOKE_TEST.md   End-to-end local verification guide
 ```
 
 ## Prerequisites
@@ -69,7 +72,12 @@ This builds and runs api, worker, and web containers plus Traefik with Let's Enc
 | `pnpm db:studio` | Open Prisma Studio |
 | `pnpm typecheck` | Type-check every workspace package |
 | `pnpm build` | Build all packages |
-| `pnpm test` | Run tests across the workspace |
+| `pnpm test` | Run unit tests across the workspace |
+| `pnpm smoke:health` | Check Postgres, Redis, and API `/health` (API must be running) |
+
+## Smoke test
+
+See **[docs/SMOKE_TEST.md](docs/SMOKE_TEST.md)** for a step-by-step end-to-end guide using [spring-petclinic](https://github.com/spring-projects/spring-petclinic).
 
 ## Environment variables
 

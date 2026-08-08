@@ -1,47 +1,84 @@
-import { authClient, signOut } from "./lib/auth-client.js";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/lib/auth-client";
+import { AppDetailPage } from "@/pages/app-detail-page";
+import { AppsPage } from "@/pages/apps-page";
+import { LoginPage } from "@/pages/login-page";
+import { NewAppPage } from "@/pages/new-app-page";
 
-async function signInWithGitHub() {
-  await authClient.signIn.social({
-    provider: "github",
-    callbackURL: "/",
-  });
-}
-
-export default function App() {
-  const { data: session, isPending } = authClient.useSession();
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending } = useSession();
 
   if (isPending) {
     return (
-      <main className="placeholder">
-        <p>Loading session…</p>
-      </main>
+      <div className="flex min-h-screen items-center justify-center">
+        <Skeleton className="h-8 w-48" />
+      </div>
     );
   }
 
   if (!session) {
-    return (
-      <main className="placeholder">
-        <h1>Spring Lane</h1>
-        <p>One-click Spring Boot deploys for any GitHub account.</p>
-        <button type="button" className="btn" onClick={() => signInWithGitHub()}>
-          Sign in with GitHub
-        </button>
-      </main>
-    );
+    return <Navigate to="/login" replace />;
   }
 
-  const user = session.user;
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const { data: session } = useSession();
+  const user = session?.user;
 
   return (
-    <main className="placeholder">
-      <h1>Spring Lane</h1>
-      <p>Signed in as {user.name ?? user.email}</p>
-      {user.image ? (
-        <img src={user.image} alt="" className="avatar" width={48} height={48} />
-      ) : null}
-      <button type="button" className="btn btn-secondary" onClick={() => signOut()}>
-        Sign out
-      </button>
-    </main>
+    <Routes>
+      <Route
+        path="/login"
+        element={session ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            {user ? <AppsPage user={user} /> : null}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/apps/new"
+        element={
+          <ProtectedRoute>
+            {user ? <NewAppPage user={user} /> : null}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/apps/:id"
+        element={
+          <ProtectedRoute>
+            {user ? (
+              <AppDetailRoute user={user} />
+            ) : null}
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function AppDetailRoute({
+  user,
+}: {
+  user: { name?: string | null; email?: string; image?: string | null };
+}) {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to="/" replace />;
+  return <AppDetailPage appId={id} user={user} />;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }

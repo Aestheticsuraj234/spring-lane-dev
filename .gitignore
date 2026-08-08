@@ -23,3 +23,4 @@ pnpm-debug.log*
 .DS_Store
 
 .pnpm-store
+.pnpm-store/v11/files/00/0aa7691c7a11d7d86fdf5cb70402c78f925c1297106478384a6563360c324f30a85d1118f5c6e12f9f0d4c2243e55d35816b46afcdb1b36c8d86566fc33ddc
