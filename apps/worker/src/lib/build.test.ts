@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
-import { imageTag } from "./build.js";
+import { detectBuildTool, imageTag } from "./build.js";
 
 describe("build helpers", () => {
   it("formats docker image tags", () => {
@@ -8,5 +11,18 @@ describe("build helpers", () => {
       imageTag("demo", "clxyz1234567890"),
       "spring-lane/demo:clxyz1234567",
     );
+  });
+
+  it("rejects Node.js repos with a helpful message", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "spring-lane-build-"));
+    try {
+      await writeFile(path.join(dir, "package.json"), "{}");
+      await assert.rejects(
+        () => detectBuildTool(dir),
+        /looks like a Node.js project/,
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

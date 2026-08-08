@@ -82,6 +82,7 @@ export async function processBuildJob(job: Job<BuildJobData>): Promise<void> {
       packImage: config.packImage,
       builder: config.buildpackBuilder,
       dockerSocket: config.dockerSocket || undefined,
+      packVolumeKey: config.packVolumeKey,
       onOutput: writeOutput,
     });
 

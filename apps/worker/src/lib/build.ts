@@ -56,29 +56,35 @@ export async function detectBuildTool(repoDir: string): Promise<BuildTool> {
   const isWin = process.platform === "win32";
   const gradleWrapper = path.join(repoDir, isWin ? "gradlew.bat" : "gradlew");
   const mavenWrapper = path.join(repoDir, isWin ? "mvnw.cmd" : "mvnw");
+  const hasGradle =
+    (await pathExists(gradleWrapper)) ||
+    (await pathExists(path.join(repoDir, "gradlew"))) ||
+    (await pathExists(path.join(repoDir, "build.gradle"))) ||
+    (await pathExists(path.join(repoDir, "build.gradle.kts")));
+  const hasMaven =
+    (await pathExists(mavenWrapper)) ||
+    (await pathExists(path.join(repoDir, "mvnw"))) ||
+    (await pathExists(path.join(repoDir, "pom.xml")));
 
-  if (await pathExists(gradleWrapper)) {
+  if (hasGradle) {
     return "gradle";
   }
-  if (await pathExists(path.join(repoDir, "gradlew"))) {
-    return "gradle";
-  }
-  if (await pathExists(mavenWrapper)) {
+  if (hasMaven) {
     return "maven";
   }
-  if (await pathExists(path.join(repoDir, "mvnw"))) {
-    return "maven";
-  }
-  if (await pathExists(path.join(repoDir, "build.gradle")) ||
-      await pathExists(path.join(repoDir, "build.gradle.kts"))) {
-    return "gradle";
-  }
-  if (await pathExists(path.join(repoDir, "pom.xml"))) {
-    return "maven";
+
+  const looksLikeNode =
+    (await pathExists(path.join(repoDir, "package.json"))) &&
+    !(await pathExists(path.join(repoDir, "pom.xml")));
+
+  if (looksLikeNode) {
+    throw new Error(
+      "This repository looks like a Node.js project (package.json found). Spring Lane deploys Spring Boot apps — pick a repo with pom.xml or build.gradle.",
+    );
   }
 
   throw new Error(
-    "No supported Spring Boot build tool found (expected Gradle or Maven wrapper)",
+    "No Spring Boot project found (expected pom.xml, build.gradle, or Maven/Gradle wrapper in the repo root).",
   );
 }
 
@@ -88,6 +94,7 @@ export async function runBootBuildImage(options: {
   packImage: string;
   builder: string;
   dockerSocket?: string;
+  packVolumeKey?: string;
   onOutput?: (chunk: string) => void | Promise<void>;
 }): Promise<void> {
   await runBuildpackBuild({
@@ -96,6 +103,7 @@ export async function runBootBuildImage(options: {
     packImage: options.packImage,
     builder: options.builder,
     dockerSocket: options.dockerSocket,
+    packVolumeKey: options.packVolumeKey,
     onOutput: options.onOutput,
   });
 }
