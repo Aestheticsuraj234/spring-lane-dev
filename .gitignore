@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+
+# runtime data
+data/
+tmp/
+
+# logs
+*.log
+pnpm-debug.log*
+
+# editor
+.idea/
+.vscode/
+.DS_Store

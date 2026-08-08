@@ -1,0 +1,22 @@
+{
+  "name": "spring-lane",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Internal one-click deploy platform for Spring Boot apps",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm --filter @spring-lane/api dev",
+    "dev:worker": "pnpm --filter @spring-lane/worker dev",
+    "dev:web": "pnpm --filter @spring-lane/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
