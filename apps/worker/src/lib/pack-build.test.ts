@@ -39,6 +39,7 @@ describe("pack build helpers", () => {
     const repoDir = path.join("data", "builds", "deploy-1");
     const { command, args } = buildPackDockerArgs({
       repoDir,
+      projectPath: "app/app",
       imageName: "spring-lane/demo:abc123",
       packImage: "buildpacksio/pack:0.40.8",
       builder: "paketobuildpacks/builder-jammy-base",
@@ -52,7 +53,7 @@ describe("pack build helpers", () => {
     assert.ok(args.includes("build"));
     assert.ok(args.includes("spring-lane/demo:abc123"));
     assert.ok(args.includes("--path"));
-    assert.ok(args.includes("/workspace"));
+    assert.ok(args.includes("/workspace/app/app"));
     assert.ok(args.includes("--builder"));
     assert.ok(args.includes("paketobuildpacks/builder-jammy-base"));
     assert.ok(args.includes("--trust-builder"));

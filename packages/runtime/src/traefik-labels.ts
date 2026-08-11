@@ -3,6 +3,7 @@ export interface TraefikLabelOptions {
   deploymentId: string;
   port: number;
   baseDomain: string;
+  traefikNetwork: string;
 }
 
 export function routerName(appName: string, deploymentId: string): string {
@@ -25,7 +26,9 @@ export function buildTraefikLabels(options: TraefikLabelOptions): Record<string,
 
   const labels: Record<string, string> = {
     "traefik.enable": "true",
+    "traefik.docker.network": options.traefikNetwork,
     [`traefik.http.routers.${router}.rule`]: `Host(\`${host}\`)`,
+    [`traefik.http.routers.${router}.service`]: router,
     [`traefik.http.services.${router}.loadbalancer.server.port`]: String(options.port),
     "spring-lane.app": options.appName,
     "spring-lane.deployment": options.deploymentId,

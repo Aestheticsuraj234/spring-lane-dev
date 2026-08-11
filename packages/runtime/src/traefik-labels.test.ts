@@ -14,12 +14,18 @@ describe("traefik labels", () => {
       deploymentId: "clxyz1234567890",
       port: 8080,
       baseDomain: "localhost",
+      traefikNetwork: "spring-lane",
     });
 
     assert.equal(labels["traefik.enable"], "true");
+    assert.equal(labels["traefik.docker.network"], "spring-lane");
     assert.equal(
       labels["traefik.http.routers.sl-demo-clxyz123.rule"],
       "Host(`demo.localhost`)",
+    );
+    assert.equal(
+      labels["traefik.http.routers.sl-demo-clxyz123.service"],
+      "sl-demo-clxyz123",
     );
     assert.equal(
       labels["traefik.http.routers.sl-demo-clxyz123.entrypoints"],
@@ -38,6 +44,7 @@ describe("traefik labels", () => {
       deploymentId: "abc",
       port: 8080,
       baseDomain: "example.com",
+      traefikNetwork: "spring-lane",
     });
 
     assert.equal(

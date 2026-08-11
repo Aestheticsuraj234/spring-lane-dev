@@ -25,6 +25,8 @@ export interface AppDto {
   name: string;
   repoUrl: string;
   branch: string;
+  /** Relative path inside the repo where pom.xml / build.gradle lives */
+  projectPath: string;
   ownerId: string;
   autoDeploy: boolean;
   /** Port the Spring Boot app listens on inside the container */
@@ -74,6 +76,8 @@ export interface CreateAppRequest {
   name: string;
   repoFullName: string;
   branch: string;
+  /** Relative path to the Spring Boot project inside the repo (default: repo root) */
+  projectPath?: string;
   port?: number;
   env?: Record<string, string>;
 }

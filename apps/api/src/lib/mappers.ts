@@ -46,6 +46,7 @@ export function toAppDto(
     name: app.name,
     repoUrl: `https://github.com/${app.repoFullName}`,
     branch: app.branch,
+    projectPath: app.projectPath,
     ownerId: app.ownerId,
     autoDeploy: app.autoDeploy,
     port: app.port,

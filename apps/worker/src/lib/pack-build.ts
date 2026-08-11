@@ -1,8 +1,10 @@
 import path from "node:path";
+import { packProjectPath } from "@spring-lane/shared";
 import { runCommand, runCommandCapture } from "./process.js";
 
 export interface PackBuildOptions {
   repoDir: string;
+  projectPath?: string;
   imageName: string;
   packImage: string;
   builder: string;
@@ -40,6 +42,7 @@ export function packContainerEnvArgs(packVolumeKey: string): string[] {
 
 export function buildPackDockerArgs(options: {
   repoDir: string;
+  projectPath?: string;
   imageName: string;
   packImage: string;
   builder: string;
@@ -47,6 +50,7 @@ export function buildPackDockerArgs(options: {
   packVolumeKey?: string;
 }): { command: string; args: string[] } {
   const packVolumeKey = options.packVolumeKey ?? "spring-lane-build-cache";
+  const workspacePath = packProjectPath(options.projectPath ?? "");
 
   return {
     command: "docker",
@@ -60,7 +64,7 @@ export function buildPackDockerArgs(options: {
       "build",
       options.imageName,
       "--path",
-      "/workspace",
+      workspacePath,
       "--builder",
       options.builder,
       "--trust-builder",

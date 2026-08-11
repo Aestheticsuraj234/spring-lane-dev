@@ -3,8 +3,10 @@ import type { Container } from "dockerode";
 import {
   appPublicUrl,
   buildTraefikLabels,
+  routerName,
   type TraefikLabelOptions,
 } from "./traefik-labels.js";
+import { buildPaketoJvmEnv, effectiveContainerMemoryMb, mergeContainerEnv } from "./jvm-env.js";
 
 export interface ContainerRuntimeOptions {
   /** Docker socket path or host connection string */
@@ -50,9 +52,15 @@ export class ContainerRuntime {
       deploymentId: params.deploymentId,
       port: params.port,
       baseDomain: this.options.baseDomain,
+      traefikNetwork: this.options.traefikNetwork,
     } satisfies TraefikLabelOptions);
 
-    const env = Object.entries(params.env ?? {}).map(
+    const memoryMb = effectiveContainerMemoryMb(params.memoryMb);
+    const envRecord = mergeContainerEnv(
+      buildPaketoJvmEnv(memoryMb),
+      params.env ?? {},
+    );
+    const env = Object.entries(envRecord).map(
       ([key, value]) => `${key}=${value}`,
     );
 
@@ -66,7 +74,7 @@ export class ContainerRuntime {
       },
       HostConfig: {
         NetworkMode: this.options.traefikNetwork,
-        Memory: params.memoryMb * 1024 * 1024,
+        Memory: memoryMb * 1024 * 1024,
         NanoCpus: params.cpus * 1_000_000_000,
         RestartPolicy: {
           Name: "unless-stopped",
@@ -76,6 +84,7 @@ export class ContainerRuntime {
 
     await container.start();
     await this.waitForRunning(container);
+    await this.ensureTraefikRoute(params.appName, params.deploymentId);
 
     const inspect = await container.inspect();
     return {
@@ -117,7 +126,13 @@ export class ContainerRuntime {
   async stopAndRemove(containerId: string): Promise<void> {
     const container = this.getContainer(containerId);
     await this.stopContainer(container);
-    await container.remove({ force: true });
+
+    try {
+      await container.remove({ force: true });
+    } catch (error) {
+      if (isNotFound(error)) return;
+      throw error;
+    }
   }
 
   async getLogs(
@@ -172,10 +187,81 @@ export class ContainerRuntime {
 
     throw new Error("Timed out waiting for container to start");
   }
+
+  /**
+   * Traefik's Docker provider can miss host-created containers on Windows.
+   * Poll the dashboard API and restart Traefik once if the route never appears.
+   */
+  private async ensureTraefikRoute(
+    appName: string,
+    deploymentId: string,
+  ): Promise<void> {
+    if (this.options.baseDomain !== "localhost") {
+      return;
+    }
+
+    const router = `${routerName(appName, deploymentId)}@docker`;
+    const traefikApi =
+      process.env.TRAEFIK_API_URL ?? "http://127.0.0.1:8080";
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      if (await traefikHasRouter(traefikApi, router)) {
+        return;
+      }
+      await sleep(500);
+    }
+
+    console.warn(
+      `[runtime] Traefik route ${router} not found; restarting Traefik container`,
+    );
+    await this.restartTraefikContainer();
+    await sleep(2000);
+
+    if (!(await traefikHasRouter(traefikApi, router))) {
+      console.warn(
+        `[runtime] Traefik route ${router} still missing after restart`,
+      );
+    }
+  }
+
+  private async restartTraefikContainer(): Promise<void> {
+    const containers = await this.docker.listContainers({
+      all: true,
+      filters: {
+        label: ["com.docker.compose.service=traefik"],
+      },
+    });
+
+    const traefik = containers.find((c) => c.State === "running");
+    if (!traefik) {
+      console.warn("[runtime] Traefik container not found; skipping restart");
+      return;
+    }
+
+    const container = this.docker.getContainer(traefik.Id);
+    await container.restart({ t: 5 });
+  }
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function traefikHasRouter(
+  traefikApi: string,
+  router: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${traefikApi}/api/http/routers`);
+    if (!response.ok) {
+      return false;
+    }
+
+    const routers = (await response.json()) as Array<{ name?: string }>;
+    return routers.some((entry) => entry.name === router);
+  } catch {
+    return false;
+  }
 }
 
 function isNotFound(error: unknown): boolean {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "@spring-lane/db";
 import type { CreateAppRequest, UpdateEnvRequest } from "@spring-lane/shared";
+import { normalizeProjectPath } from "@spring-lane/shared";
 import { config } from "../config.js";
 import { LogStorage } from "@spring-lane/shared/log-storage";
 import { encryptSecret } from "../lib/crypto.js";
@@ -77,6 +78,16 @@ appsRouter.post("/", async (req, res) => {
     return;
   }
 
+  let projectPath = "";
+  try {
+    projectPath = normalizeProjectPath(body.projectPath);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : "Invalid projectPath",
+    });
+    return;
+  }
+
   const envEntries = Object.entries(body.env ?? {}).filter(
     ([key]) => key.trim().length > 0,
   );
@@ -88,6 +99,7 @@ appsRouter.post("/", async (req, res) => {
           name,
           repoFullName,
           branch,
+          projectPath,
           ownerId: session.user.id,
           port,
           memoryMb: config.defaultAppMemoryMb,

@@ -161,6 +161,7 @@ export function AppDetailPage({ user, appId }: AppDetailPageProps) {
           </div>
           <p className="mt-1 font-mono text-sm text-muted-foreground">
             {app.repoUrl.replace("https://github.com/", "")}@{app.branch}
+            {app.projectPath ? ` · ${app.projectPath}` : ""}
           </p>
           {app.url ? (
             <a

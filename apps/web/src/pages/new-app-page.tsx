@@ -35,6 +35,7 @@ export function NewAppPage({ user }: NewAppPageProps) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [port, setPort] = useState("8080");
+  const [projectPath, setProjectPath] = useState("");
   const [repoQuery, setRepoQuery] = useState("");
   const [repos, setRepos] = useState<RepoDto[]>([]);
   const [reposLoading, setReposLoading] = useState(false);
@@ -89,6 +90,7 @@ export function NewAppPage({ user }: NewAppPageProps) {
         name: name.trim(),
         repoFullName: selectedRepo.fullName,
         branch,
+        projectPath: projectPath.trim() || undefined,
         port: Number(port) || 8080,
       });
       navigate(`/apps/${app.id}`);
@@ -208,6 +210,19 @@ export function NewAppPage({ user }: NewAppPageProps) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="projectPath">Project path</Label>
+                <Input
+                  id="projectPath"
+                  placeholder="app/app"
+                  value={projectPath}
+                  onChange={(e) => setProjectPath(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Relative path inside the repo where pom.xml lives. Leave blank for repo root.
+                </p>
               </div>
 
               <div className="space-y-2">

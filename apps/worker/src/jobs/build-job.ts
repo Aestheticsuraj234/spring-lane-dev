@@ -68,7 +68,12 @@ export async function processBuildJob(job: Job<BuildJobData>): Promise<void> {
 
     await logger.log(`Checked out ${cloneResult.commitSha.slice(0, 7)}: ${cloneResult.commitMessage}`);
 
-    const tool = await detectBuildTool(workspaceDir);
+    const projectPath = app.projectPath ?? "";
+    if (projectPath) {
+      await logger.log(`Using project path: ${projectPath}`);
+    }
+
+    const tool = await detectBuildTool(workspaceDir, projectPath);
     await logger.log(`Detected ${tool} build`);
 
     const tag = imageTag(app.name, deploymentId);
@@ -78,6 +83,7 @@ export async function processBuildJob(job: Job<BuildJobData>): Promise<void> {
 
     await runBootBuildImage({
       repoDir: workspaceDir,
+      projectPath,
       imageName: tag,
       packImage: config.packImage,
       builder: config.buildpackBuilder,

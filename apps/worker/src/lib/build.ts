@@ -1,8 +1,11 @@
 import { access } from "node:fs/promises";
 import path from "node:path";
 import type { BuildTool } from "@spring-lane/shared";
+import { resolveProjectDir } from "@spring-lane/shared";
 import { runCommand, runCommandCapture } from "./process.js";
 import { runBuildpackBuild } from "./pack-build.js";
+
+export { resolveProjectDir };
 
 export interface CloneResult {
   commitSha: string;
@@ -52,19 +55,24 @@ export async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
-export async function detectBuildTool(repoDir: string): Promise<BuildTool> {
+export async function detectBuildTool(
+  repoDir: string,
+  projectPath = "",
+): Promise<BuildTool> {
+  const projectDir = resolveProjectDir(repoDir, projectPath);
+  const pathLabel = projectPath || "repo root";
   const isWin = process.platform === "win32";
-  const gradleWrapper = path.join(repoDir, isWin ? "gradlew.bat" : "gradlew");
-  const mavenWrapper = path.join(repoDir, isWin ? "mvnw.cmd" : "mvnw");
+  const gradleWrapper = path.join(projectDir, isWin ? "gradlew.bat" : "gradlew");
+  const mavenWrapper = path.join(projectDir, isWin ? "mvnw.cmd" : "mvnw");
   const hasGradle =
     (await pathExists(gradleWrapper)) ||
-    (await pathExists(path.join(repoDir, "gradlew"))) ||
-    (await pathExists(path.join(repoDir, "build.gradle"))) ||
-    (await pathExists(path.join(repoDir, "build.gradle.kts")));
+    (await pathExists(path.join(projectDir, "gradlew"))) ||
+    (await pathExists(path.join(projectDir, "build.gradle"))) ||
+    (await pathExists(path.join(projectDir, "build.gradle.kts")));
   const hasMaven =
     (await pathExists(mavenWrapper)) ||
-    (await pathExists(path.join(repoDir, "mvnw"))) ||
-    (await pathExists(path.join(repoDir, "pom.xml")));
+    (await pathExists(path.join(projectDir, "mvnw"))) ||
+    (await pathExists(path.join(projectDir, "pom.xml")));
 
   if (hasGradle) {
     return "gradle";
@@ -74,22 +82,23 @@ export async function detectBuildTool(repoDir: string): Promise<BuildTool> {
   }
 
   const looksLikeNode =
-    (await pathExists(path.join(repoDir, "package.json"))) &&
-    !(await pathExists(path.join(repoDir, "pom.xml")));
+    (await pathExists(path.join(projectDir, "package.json"))) &&
+    !(await pathExists(path.join(projectDir, "pom.xml")));
 
   if (looksLikeNode) {
     throw new Error(
-      "This repository looks like a Node.js project (package.json found). Spring Lane deploys Spring Boot apps — pick a repo with pom.xml or build.gradle.",
+      `This repository looks like a Node.js project at ${pathLabel} (package.json found). Spring Lane deploys Spring Boot apps — pick a repo with pom.xml or build.gradle.`,
     );
   }
 
   throw new Error(
-    "No Spring Boot project found (expected pom.xml, build.gradle, or Maven/Gradle wrapper in the repo root).",
+    `No Spring Boot project found at ${pathLabel} (expected pom.xml, build.gradle, or Maven/Gradle wrapper).`,
   );
 }
 
 export async function runBootBuildImage(options: {
   repoDir: string;
+  projectPath?: string;
   imageName: string;
   packImage: string;
   builder: string;
@@ -99,6 +108,7 @@ export async function runBootBuildImage(options: {
 }): Promise<void> {
   await runBuildpackBuild({
     repoDir: path.resolve(options.repoDir),
+    projectPath: options.projectPath ?? "",
     imageName: options.imageName,
     packImage: options.packImage,
     builder: options.builder,

@@ -91,10 +91,11 @@ model App {
   name         String   @unique
   repoFullName String
   branch       String
+  projectPath  String   @default("")
   ownerId      String
   autoDeploy   Boolean  @default(false)
   port         Int      @default(8080)
-  memoryMb     Int      @default(512)
+  memoryMb     Int      @default(1024)
   cpus         Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
